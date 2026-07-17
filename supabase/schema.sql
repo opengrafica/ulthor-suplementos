@@ -73,6 +73,9 @@ CREATE TABLE IF NOT EXISTS orders (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   subtotal DECIMAL(10,2),
   frete DECIMAL(10,2) DEFAULT 0,
+  desconto DECIMAL(10,2) DEFAULT 0,
+  cupom_codigo TEXT,
+  codigo_rastreio TEXT,
   total DECIMAL(10,2) NOT NULL CHECK (total >= 0),
   status order_status NOT NULL DEFAULT 'recebido',
   metodo_envio TEXT,
@@ -80,6 +83,21 @@ CREATE TABLE IF NOT EXISTS orders (
   endereco_entrega JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Cupons de desconto
+CREATE TYPE coupon_type AS ENUM ('percentual', 'fixo', 'frete_gratis');
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  codigo TEXT NOT NULL UNIQUE,
+  tipo coupon_type NOT NULL DEFAULT 'percentual',
+  valor DECIMAL(10,2) NOT NULL DEFAULT 0 CHECK (valor >= 0),
+  uso_maximo INTEGER,
+  uso_atual INTEGER NOT NULL DEFAULT 0 CHECK (uso_atual >= 0),
+  ativo BOOLEAN NOT NULL DEFAULT TRUE,
+  valido_ate TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Itens do pedido

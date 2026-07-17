@@ -15,6 +15,7 @@ import { validateAddress } from '@/lib/validations'
 import { formatCep } from '@/lib/shipping'
 import { fetchAddressByCep } from '@/services/viacep.service'
 import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '@/types'
+import { getTrackingUrl } from '@/services/coupon.service'
 import type { Order, Product } from '@/types'
 
 export function ProfilePage() {
@@ -127,6 +128,22 @@ export function OrdersPage() {
                         Frete: {order.frete === 0 ? 'Grátis' : formatCurrency(order.frete)}
                         {order.metodo_envio ? ` · ${order.metodo_envio}` : ''}
                       </p>
+                    )}
+                    {order.desconto != null && order.desconto > 0 && (
+                      <p className="text-xs text-green-400">
+                        Desconto: -{formatCurrency(order.desconto)}
+                        {order.cupom_codigo ? ` (${order.cupom_codigo})` : ''}
+                      </p>
+                    )}
+                    {order.codigo_rastreio && (
+                      <a
+                        href={getTrackingUrl(order.codigo_rastreio)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-ulthor-gold hover:underline mt-1 inline-block"
+                      >
+                        Rastrear: {order.codigo_rastreio}
+                      </a>
                     )}
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-medium ${ORDER_STATUS_COLORS[order.status]}`}>

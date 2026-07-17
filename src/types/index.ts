@@ -64,11 +64,28 @@ export interface Banner {
   created_at?: string
 }
 
+export type CouponType = 'percentual' | 'fixo' | 'frete_gratis'
+
+export interface Coupon {
+  id: string
+  codigo: string
+  tipo: CouponType
+  valor: number
+  uso_maximo?: number | null
+  uso_atual: number
+  ativo: boolean
+  valido_ate?: string | null
+  created_at?: string
+}
+
 export interface Order {
   id: string
   user_id: string
   subtotal?: number
   frete?: number
+  desconto?: number
+  cupom_codigo?: string
+  codigo_rastreio?: string
   total: number
   status: OrderStatus
   metodo_envio?: string

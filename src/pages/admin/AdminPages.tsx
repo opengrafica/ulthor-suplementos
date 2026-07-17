@@ -170,17 +170,36 @@ export function AdminProductsPage() {
 export function AdminOrdersPage() {
   const [orders, setOrders] = useState<import('@/types').Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [trackingDrafts, setTrackingDrafts] = useState<Record<string, string>>({})
+  const [savingTracking, setSavingTracking] = useState<string | null>(null)
 
   useEffect(() => {
     import('@/services/order.service').then(({ orderService }) => {
-      orderService.getAll().then(setOrders).finally(() => setLoading(false))
+      orderService.getAll().then((data) => {
+        setOrders(data)
+        setTrackingDrafts(
+          Object.fromEntries(data.map((o) => [o.id, o.codigo_rastreio || '']))
+        )
+      }).finally(() => setLoading(false))
     })
   }, [])
 
   const updateStatus = async (id: string, status: import('@/types').OrderStatus) => {
     const { orderService } = await import('@/services/order.service')
-    await orderService.updateStatus(id, status)
-    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o))
+    const updated = await orderService.update(id, { status })
+    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, ...updated } : o))
+  }
+
+  const saveTracking = async (id: string) => {
+    setSavingTracking(id)
+    try {
+      const { orderService } = await import('@/services/order.service')
+      const codigo = trackingDrafts[id]?.trim() || ''
+      const updated = await orderService.update(id, { codigoRastreio: codigo })
+      setOrders((prev) => prev.map((o) => o.id === id ? { ...o, ...updated } : o))
+    } finally {
+      setSavingTracking(null)
+    }
   }
 
   if (loading) return <LoadingSpinner />
@@ -196,13 +215,18 @@ export function AdminOrdersPage() {
             <Card key={order.id}>
               <CardContent>
                 <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1 min-w-0">
                     <p className="text-sm text-ulthor-gray-400">#{order.id.slice(0, 8)}</p>
                     <p className="text-white font-semibold">{formatCurrency(order.total)}</p>
                     {order.subtotal != null && order.frete != null && (
                       <p className="text-xs text-ulthor-gray-400">
-                        Subtotal {formatCurrency(order.subtotal)} + Frete {order.frete === 0 ? 'Grátis' : formatCurrency(order.frete)}
+                        Subtotal {formatCurrency(order.subtotal)}
+                        {order.desconto ? ` - ${formatCurrency(order.desconto)}` : ''}
+                        {' + Frete '}{order.frete === 0 ? 'Grátis' : formatCurrency(order.frete)}
                       </p>
+                    )}
+                    {order.cupom_codigo && (
+                      <p className="text-xs text-green-400">Cupom: {order.cupom_codigo}</p>
                     )}
                     {order.metodo_envio && (
                       <p className="text-xs text-ulthor-gray-400">
@@ -219,6 +243,29 @@ export function AdminOrdersPage() {
                       </p>
                     )}
                     <p className="text-xs text-ulthor-gray-500">{new Date(order.created_at).toLocaleString('pt-BR')}</p>
+
+                    <div className="mt-3 flex flex-wrap gap-2 items-end max-w-md">
+                      <Input
+                        label="Código de rastreio"
+                        placeholder="Ex: AA123456789BR"
+                        value={trackingDrafts[order.id] || ''}
+                        onChange={(e) => setTrackingDrafts({ ...trackingDrafts, [order.id]: e.target.value.toUpperCase() })}
+                        className="flex-1 min-w-[200px]"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => saveTracking(order.id)}
+                        isLoading={savingTracking === order.id}
+                      >
+                        Salvar rastreio
+                      </Button>
+                    </div>
+                    {order.codigo_rastreio && (
+                      <p className="text-xs text-ulthor-gold mt-1">
+                        Rastreio ativo: {order.codigo_rastreio}
+                      </p>
+                    )}
                   </div>
                   <Select
                     value={order.status}
@@ -375,6 +422,149 @@ export function AdminBannersPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+    </div>
+  )
+}
+
+export function AdminCouponsPage() {
+  const [coupons, setCoupons] = useState<import('@/types').Coupon[]>([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({
+    codigo: '',
+    tipo: 'percentual' as import('@/types').CouponType,
+    valor: 10,
+    uso_maximo: '' as string | number,
+    ativo: true,
+  })
+
+  const load = () => {
+    setLoading(true)
+    import('@/services/coupon.service').then(({ couponService }) => {
+      couponService.getAll().then(setCoupons).finally(() => setLoading(false))
+    })
+  }
+
+  useEffect(() => { load() }, [])
+
+  const handleCreate = async () => {
+    if (!form.codigo.trim()) return
+    try {
+      const { couponService } = await import('@/services/coupon.service')
+      await couponService.create({
+        codigo: form.codigo,
+        tipo: form.tipo,
+        valor: form.valor,
+        uso_maximo: form.uso_maximo === '' ? null : Number(form.uso_maximo),
+        ativo: form.ativo,
+      })
+      setForm({ codigo: '', tipo: 'percentual', valor: 10, uso_maximo: '', ativo: true })
+      load()
+    } catch {
+      alert('Erro ao criar cupom')
+    }
+  }
+
+  const toggleActive = async (coupon: import('@/types').Coupon) => {
+    const { couponService } = await import('@/services/coupon.service')
+    await couponService.update(coupon.id, { ativo: !coupon.ativo })
+    load()
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Excluir cupom?')) return
+    const { couponService } = await import('@/services/coupon.service')
+    await couponService.delete(id)
+    load()
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  return (
+    <div className="space-y-6">
+      <h2 className="font-display text-2xl font-bold text-white">Cupons de Desconto</h2>
+
+      <Card>
+        <CardContent className="space-y-4">
+          <CardTitle>Novo Cupom</CardTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Código"
+              placeholder="ULTHOR10"
+              value={form.codigo}
+              onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
+            />
+            <Select
+              label="Tipo"
+              value={form.tipo}
+              onChange={(e) => setForm({ ...form, tipo: e.target.value as import('@/types').CouponType })}
+              options={[
+                { value: 'percentual', label: 'Percentual (%)' },
+                { value: 'fixo', label: 'Valor fixo (R$)' },
+                { value: 'frete_gratis', label: 'Frete grátis' },
+              ]}
+            />
+            {form.tipo !== 'frete_gratis' && (
+              <Input
+                label={form.tipo === 'percentual' ? 'Desconto (%)' : 'Desconto (R$)'}
+                type="number"
+                step="0.01"
+                value={form.valor}
+                onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })}
+              />
+            )}
+            <Input
+              label="Limite de usos (opcional)"
+              type="number"
+              placeholder="Ilimitado"
+              value={form.uso_maximo}
+              onChange={(e) => setForm({ ...form, uso_maximo: e.target.value })}
+            />
+          </div>
+          <Button onClick={handleCreate} className="gap-2"><Plus className="h-4 w-4" /> Criar Cupom</Button>
+        </CardContent>
+      </Card>
+
+      <div className="overflow-x-auto rounded-xl border border-ulthor-gray-700">
+        <table className="w-full text-sm">
+          <thead className="bg-ulthor-gray-800">
+            <tr className="text-ulthor-gray-400">
+              <th className="text-left p-4">Código</th>
+              <th className="text-left p-4">Tipo</th>
+              <th className="text-left p-4">Valor</th>
+              <th className="text-left p-4">Usos</th>
+              <th className="text-left p-4">Status</th>
+              <th className="text-right p-4">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {coupons.map((c) => (
+              <tr key={c.id} className="border-t border-ulthor-gray-700">
+                <td className="p-4 text-white font-medium">{c.codigo}</td>
+                <td className="p-4 text-ulthor-gray-400">
+                  {c.tipo === 'percentual' ? 'Percentual' : c.tipo === 'fixo' ? 'Fixo' : 'Frete grátis'}
+                </td>
+                <td className="p-4 text-ulthor-gold">
+                  {c.tipo === 'percentual' ? `${c.valor}%` : c.tipo === 'fixo' ? formatCurrency(c.valor) : '—'}
+                </td>
+                <td className="p-4 text-ulthor-gray-400">
+                  {c.uso_atual}{c.uso_maximo != null ? ` / ${c.uso_maximo}` : ''}
+                </td>
+                <td className="p-4">
+                  {c.ativo ? <Badge variant="success">Ativo</Badge> : <Badge variant="danger">Inativo</Badge>}
+                </td>
+                <td className="p-4 text-right space-x-2">
+                  <button onClick={() => toggleActive(c)} className="text-ulthor-gray-400 hover:text-ulthor-gold text-xs">
+                    {c.ativo ? 'Desativar' : 'Ativar'}
+                  </button>
+                  <button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-300">
+                    <Trash2 className="h-4 w-4 inline" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

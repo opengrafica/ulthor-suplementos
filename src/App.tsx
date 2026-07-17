@@ -20,7 +20,7 @@ import {
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
 import {
   AdminProductsPage, AdminOrdersPage, AdminUsersPage,
-  AdminCategoriesPage, AdminBannersPage, AdminReportsPage,
+  AdminCategoriesPage, AdminBannersPage, AdminReportsPage, AdminCouponsPage,
 } from '@/pages/admin/AdminPages'
 
 function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -67,6 +67,7 @@ function AppRoutes() {
         <Route index element={<AdminDashboardPage />} />
         <Route path="produtos" element={<AdminProductsPage />} />
         <Route path="pedidos" element={<AdminOrdersPage />} />
+        <Route path="cupons" element={<AdminCouponsPage />} />
         <Route path="usuarios" element={<AdminUsersPage />} />
         <Route path="categorias" element={<AdminCategoriesPage />} />
         <Route path="banners" element={<AdminBannersPage />} />

@@ -6,15 +6,25 @@ export interface CreateOrderParams {
   items: { product_id: string; quantidade: number; preco: number }[]
   subtotal: number
   frete: number
+  desconto?: number
+  cupomCodigo?: string
   total: number
   endereco?: unknown
   metodoEnvio?: string
   prazoEntregaDias?: number
 }
 
+export interface UpdateOrderParams {
+  status?: OrderStatus
+  codigoRastreio?: string
+}
+
 export const orderService = {
   async create(params: CreateOrderParams) {
-    const { userId, items, subtotal, frete, total, endereco, metodoEnvio, prazoEntregaDias } = params
+    const {
+      userId, items, subtotal, frete, desconto = 0, cupomCodigo,
+      total, endereco, metodoEnvio, prazoEntregaDias,
+    } = params
     if (!isSupabaseConfigured) throw new Error('Supabase não configurado')
 
     const { data: order, error: orderError } = await supabase
@@ -23,6 +33,8 @@ export const orderService = {
         user_id: userId,
         subtotal,
         frete,
+        desconto,
+        cupom_codigo: cupomCodigo,
         total,
         endereco_entrega: endereco,
         metodo_envio: metodoEnvio,
@@ -80,10 +92,18 @@ export const orderService = {
   },
 
   async updateStatus(orderId: string, status: OrderStatus) {
+    return this.update(orderId, { status })
+  },
+
+  async update(orderId: string, params: UpdateOrderParams) {
     if (!isSupabaseConfigured) throw new Error('Supabase não configurado')
+    const payload: Record<string, unknown> = {}
+    if (params.status) payload.status = params.status
+    if (params.codigoRastreio !== undefined) payload.codigo_rastreio = params.codigoRastreio
+
     const { data, error } = await supabase
       .from('orders')
-      .update({ status })
+      .update(payload)
       .eq('id', orderId)
       .select()
       .single()

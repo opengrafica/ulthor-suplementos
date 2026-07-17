@@ -18,8 +18,13 @@ import {
   SHIPPING_CONFIG,
   type ShippingMethodId,
 } from '@/lib/shipping'
+import {
+  couponService,
+  calculateCouponDiscount,
+  type ValidatedCoupon,
+} from '@/services/coupon.service'
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle, MapPin, Truck } from 'lucide-react'
+import { CheckCircle, MapPin, Tag, Truck } from 'lucide-react'
 import type { Address } from '@/types'
 
 const emptyAddress = (): Address => ({
@@ -41,6 +46,11 @@ export function CheckoutPage() {
   const [addressErrors, setAddressErrors] = useState<Record<string, string>>({})
   const [cepLoading, setCepLoading] = useState(false)
   const [selectedShipping, setSelectedShipping] = useState<ShippingMethodId | null>(null)
+  const [couponInput, setCouponInput] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidatedCoupon | null>(null)
+  const [couponFreteGratis, setCouponFreteGratis] = useState(false)
+  const [couponError, setCouponError] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
   const subtotal = getSubtotal()
 
   useEffect(() => {
@@ -55,9 +65,13 @@ export function CheckoutPage() {
   )
 
   const selectedOption = getSelectedShippingOption(shippingOptions, selectedShipping)
-  const frete = selectedOption?.preco ?? 0
-  const total = subtotal + frete
-  const freeShippingEligible = subtotal >= SHIPPING_CONFIG.freteGratisAcima
+  const couponDiscount = appliedCoupon ? calculateCouponDiscount(appliedCoupon, subtotal) : { desconto: 0, freteGratis: false }
+  const desconto = couponDiscount.desconto
+  const freteGratis = couponFreteGratis || couponDiscount.freteGratis
+  const baseFrete = selectedOption?.preco ?? 0
+  const frete = freteGratis ? 0 : baseFrete
+  const total = Math.max(0, subtotal - desconto + frete)
+  const freeShippingEligible = subtotal >= SHIPPING_CONFIG.freteGratisAcima || freteGratis
 
   useEffect(() => {
     if (shippingOptions.length > 0 && !selectedShipping) {
@@ -110,6 +124,35 @@ export function CheckoutPage() {
     }
   }
 
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return
+    setCouponLoading(true)
+    setCouponError('')
+    try {
+      const result = await couponService.validate(couponInput)
+      if (!result.valid) {
+        setAppliedCoupon(null)
+        setCouponFreteGratis(false)
+        setCouponError(result.message)
+        return
+      }
+      setAppliedCoupon(result.coupon)
+      setCouponFreteGratis(result.coupon.tipo === 'frete_gratis')
+      setCouponInput(result.coupon.codigo)
+    } catch {
+      setCouponError('Erro ao validar cupom')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponFreteGratis(false)
+    setCouponInput('')
+    setCouponError('')
+  }
+
   const handleCheckout = async () => {
     if (!user) return
 
@@ -143,11 +186,17 @@ export function CheckoutPage() {
         items: orderItems,
         subtotal,
         frete,
+        desconto,
+        cupomCodigo: appliedCoupon?.codigo,
         total,
         endereco: address,
         metodoEnvio: selectedOption.nome,
         prazoEntregaDias: selectedOption.prazoDias,
       })
+
+      if (appliedCoupon) {
+        await couponService.incrementUsage(appliedCoupon.codigo)
+      }
 
       clearCart()
       setOrderId(order.id)
@@ -264,7 +313,7 @@ export function CheckoutPage() {
                         </div>
                       </div>
                       <span className="font-semibold text-ulthor-gold">
-                        {option.gratis ? 'Grátis' : formatCurrency(option.preco)}
+                        {option.gratis || freteGratis ? 'Grátis' : formatCurrency(option.preco)}
                       </span>
                     </label>
                   ))}
@@ -272,6 +321,36 @@ export function CheckoutPage() {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardContent>
+              <CardTitle className="mb-4 flex items-center gap-2">
+                <Tag className="h-5 w-5 text-ulthor-gold" /> Cupom de Desconto
+              </CardTitle>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: ULTHOR10"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  error={couponError}
+                  className="flex-1"
+                  disabled={!!appliedCoupon}
+                />
+                {appliedCoupon ? (
+                  <Button variant="outline" onClick={handleRemoveCoupon}>Remover</Button>
+                ) : (
+                  <Button onClick={handleApplyCoupon} isLoading={couponLoading}>Aplicar</Button>
+                )}
+              </div>
+              {appliedCoupon && (
+                <p className="text-sm text-green-400 mt-2">
+                  Cupom {appliedCoupon.codigo} aplicado
+                  {desconto > 0 ? ` — ${formatCurrency(desconto)} de desconto` : ''}
+                  {freteGratis ? ' — frete grátis' : ''}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardContent>
@@ -289,11 +368,17 @@ export function CheckoutPage() {
                   <span className="text-ulthor-gray-400">Subtotal</span>
                   <span className="text-white">{formatCurrency(subtotal)}</span>
                 </div>
+                {desconto > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-ulthor-gray-400">Desconto</span>
+                    <span className="text-green-400">-{formatCurrency(desconto)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-ulthor-gray-400">Frete</span>
                   <span className="text-white">
                     {selectedOption
-                      ? selectedOption.gratis
+                      ? freteGratis || selectedOption.gratis
                         ? 'Grátis'
                         : formatCurrency(frete)
                       : 'Informe o CEP'}
