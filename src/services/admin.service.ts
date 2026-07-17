@@ -83,6 +83,23 @@ export const adminService = {
     const { error } = await supabase.from('banners').delete().eq('id', id)
     if (error) throw error
   },
+
+  async uploadProductImage(file: File): Promise<string> {
+    if (!isSupabaseConfigured) throw new Error('Supabase não configurado')
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg'
+    const path = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${safeExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('products')
+      .upload(path, file, { upsert: false, contentType: file.type })
+
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage.from('products').getPublicUrl(path)
+    return data.publicUrl
+  },
 }
 
 export const favoriteService = {

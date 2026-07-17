@@ -9,6 +9,7 @@ import { productService } from '@/services/product.service'
 import { adminService } from '@/services/admin.service'
 import { validateProduct } from '@/lib/validations'
 import { formatCurrency } from '@/lib/utils'
+import { ProductImageUpload } from '@/components/admin/ProductImageUpload'
 import type { Product, Category } from '@/types'
 
 const emptyProduct = {
@@ -146,7 +147,10 @@ export function AdminProductsPage() {
             error={errors.categoria}
             options={[{ value: '', label: 'Selecione...' }, ...categories.map((c) => ({ value: c.nome, label: c.nome }))]}
           />
-          <Input label="URL da Imagem" value={form.imagens[0]} onChange={(e) => setForm({ ...form, imagens: [e.target.value] })} />
+          <ProductImageUpload
+            value={form.imagens[0] || ''}
+            onChange={(url) => setForm({ ...form, imagens: [url] })}
+          />
           <Textarea label="Modo de Uso" value={form.modo_uso} onChange={(e) => setForm({ ...form, modo_uso: e.target.value })} rows={2} />
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm text-ulthor-gray-300">

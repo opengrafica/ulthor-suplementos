@@ -67,18 +67,38 @@ Projeto configurado: **ulthor-suplementos** (região São Paulo)
 - WhatsApp: (11) 92473-0574
 
 ### Criar admin
-Registre via Auth no site ou Supabase Dashboard:
-- Email: `admin@ulthor.com`
-- Senha: (sua escolha, mín. 6 caracteres)
+Conta administrativa já configurada:
 
-Depois execute no SQL Editor:
-```sql
-UPDATE users SET role = 'admin', nome = 'Administrador' WHERE email = 'admin@ulthor.com';
+| Campo | Valor |
+|-------|-------|
+| **E-mail** | `ulthorsuplementos@gmail.com` |
+| **Senha** | `Ulthor@2026` |
+
+Acesse `/login` e depois `/admin` para o painel administrativo.
+
+> Recomendado: altere a senha em **Minha Conta → Alterar Senha** após o primeiro acesso.
+
+### Cadastro de clientes
+- Clientes precisam **criar conta** em `/cadastro` para finalizar compras
+- Checkout (`/checkout`) exige login
+- Pedidos ficam em **Minha Conta → Meus Pedidos** (`/conta/pedidos`)
+
+## GitHub
+
+Repositório local inicializado. Para publicar:
+
+```bash
+gh auth login
+gh repo create ulthor-suplementos --public --source=. --remote=origin --push
 ```
 
-## GitHub (próximo passo)
+Ou crie o repositório manualmente em github.com e execute:
 
-Quando quiser conectar ao GitHub, peça para criar o repositório e fazer o push.
+```bash
+git remote add origin https://github.com/SEU_USUARIO/ulthor-suplementos.git
+git branch -M main
+git push -u origin main
+```
 
 ## Estrutura do Projeto
 
