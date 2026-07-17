@@ -174,7 +174,10 @@ export function AddressPage() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    if (user?.endereco) setForm({ cep: '', complemento: '', ...user.endereco })
+    if (user?.endereco) {
+      const defaults = { cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' }
+      setForm({ ...defaults, ...user.endereco })
+    }
   }, [user])
 
   const handleSave = async () => {

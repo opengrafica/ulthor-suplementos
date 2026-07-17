@@ -4,7 +4,7 @@ import { slugify } from '@/lib/utils'
 import type { Product, ProductFilters, Review } from '@/types'
 
 function filterDemoProducts(filters?: ProductFilters): Product[] {
-  let products = [...DEMO_PRODUCTS] as Product[]
+  let products = [...DEMO_PRODUCTS] as unknown as Product[]
   if (filters?.search) {
     const search = filters.search.toLowerCase()
     products = products.filter(
@@ -53,7 +53,7 @@ export const productService = {
 
   async getBySlug(slug: string): Promise<Product | null> {
     if (!isSupabaseConfigured) {
-      return (DEMO_PRODUCTS as Product[]).find((p) => p.slug === slug) || null
+      return (DEMO_PRODUCTS as unknown as Product[]).find((p) => p.slug === slug) || null
     }
     const { data, error } = await supabase
       .from('products')
@@ -114,7 +114,7 @@ export const productService = {
   },
 
   async getAllAdmin(): Promise<Product[]> {
-    if (!isSupabaseConfigured) return [...DEMO_PRODUCTS] as Product[]
+    if (!isSupabaseConfigured) return [...DEMO_PRODUCTS] as unknown as Product[]
     const { data, error } = await supabase
       .from('products')
       .select('*')

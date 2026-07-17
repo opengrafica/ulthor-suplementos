@@ -13,7 +13,7 @@ export function CategoryGrid() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {CATEGORIES.map((cat, i) => {
-            const Icon = (Icons as Record<string, React.ComponentType<{ className?: string }>>)[cat.icon] || Icons.Package
+            const Icon = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[cat.icon] || Icons.Package
             return (
               <motion.div
                 key={cat.slug}
