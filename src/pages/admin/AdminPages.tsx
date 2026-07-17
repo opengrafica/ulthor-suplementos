@@ -195,10 +195,29 @@ export function AdminOrdersPage() {
           {orders.map((order) => (
             <Card key={order.id}>
               <CardContent>
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-1">
                     <p className="text-sm text-ulthor-gray-400">#{order.id.slice(0, 8)}</p>
                     <p className="text-white font-semibold">{formatCurrency(order.total)}</p>
+                    {order.subtotal != null && order.frete != null && (
+                      <p className="text-xs text-ulthor-gray-400">
+                        Subtotal {formatCurrency(order.subtotal)} + Frete {order.frete === 0 ? 'Grátis' : formatCurrency(order.frete)}
+                      </p>
+                    )}
+                    {order.metodo_envio && (
+                      <p className="text-xs text-ulthor-gray-400">
+                        {order.metodo_envio}
+                        {order.prazo_entrega_dias ? ` · ${order.prazo_entrega_dias} dias úteis` : ''}
+                      </p>
+                    )}
+                    {order.endereco_entrega && (
+                      <p className="text-xs text-ulthor-gray-500 max-w-md">
+                        {order.endereco_entrega.rua}, {order.endereco_entrega.numero}
+                        {order.endereco_entrega.complemento ? ` — ${order.endereco_entrega.complemento}` : ''}
+                        {' · '}{order.endereco_entrega.bairro}, {order.endereco_entrega.cidade}/{order.endereco_entrega.estado}
+                        {' · CEP '}{order.endereco_entrega.cep}
+                      </p>
+                    )}
                     <p className="text-xs text-ulthor-gray-500">{new Date(order.created_at).toLocaleString('pt-BR')}</p>
                   </div>
                   <Select

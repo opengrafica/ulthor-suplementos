@@ -71,8 +71,12 @@ CREATE TABLE IF NOT EXISTS banners (
 CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subtotal DECIMAL(10,2),
+  frete DECIMAL(10,2) DEFAULT 0,
   total DECIMAL(10,2) NOT NULL CHECK (total >= 0),
   status order_status NOT NULL DEFAULT 'recebido',
+  metodo_envio TEXT,
+  prazo_entrega_dias INTEGER,
   endereco_entrega JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

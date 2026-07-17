@@ -19,13 +19,12 @@ export const paymentIntegrations = {
 }
 
 export const shippingIntegrations = {
+  /** Cálculo por região/CEP — ver src/lib/shipping.ts */
   correios: {
-    enabled: false,
-    calculateShipping: (_cep: string, _weight: number) => null,
+    enabled: true,
   },
   melhorEnvio: {
     enabled: false,
-    calculateShipping: (_cep: string, _weight: number) => null,
   },
 }
 

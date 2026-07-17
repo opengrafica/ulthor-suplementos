@@ -11,6 +11,9 @@ import { orderService } from '@/services/order.service'
 import { productService } from '@/services/product.service'
 import { isSupabaseConfigured } from '@/services/supabase'
 import { formatCurrency } from '@/lib/utils'
+import { validateAddress } from '@/lib/validations'
+import { formatCep } from '@/lib/shipping'
+import { fetchAddressByCep } from '@/services/viacep.service'
 import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '@/types'
 import type { Order, Product } from '@/types'
 
@@ -119,6 +122,12 @@ export function OrdersPage() {
                   <div>
                     <p className="text-sm text-ulthor-gray-400">Pedido #{order.id.slice(0, 8)}</p>
                     <p className="text-white font-semibold mt-1">{formatCurrency(order.total)}</p>
+                    {order.frete != null && (
+                      <p className="text-xs text-ulthor-gray-400 mt-1">
+                        Frete: {order.frete === 0 ? 'Grátis' : formatCurrency(order.frete)}
+                        {order.metodo_envio ? ` · ${order.metodo_envio}` : ''}
+                      </p>
+                    )}
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-medium ${ORDER_STATUS_COLORS[order.status]}`}>
                     {ORDER_STATUS_LABELS[order.status]}
@@ -171,7 +180,9 @@ export function AddressPage() {
   const { user, refreshProfile } = useAuthStore()
   const [form, setForm] = useState({ cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' })
   const [loading, setLoading] = useState(false)
+  const [cepLoading, setCepLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (user?.endereco) {
@@ -180,8 +191,38 @@ export function AddressPage() {
     }
   }, [user])
 
+  const handleCepBlur = async () => {
+    const digits = form.cep.replace(/\D/g, '')
+    if (digits.length !== 8) return
+
+    setCepLoading(true)
+    try {
+      const data = await fetchAddressByCep(digits)
+      if (data) {
+        setForm((prev) => ({
+          ...prev,
+          cep: formatCep(data.cep),
+          rua: data.logradouro || prev.rua,
+          bairro: data.bairro || prev.bairro,
+          cidade: data.localidade || prev.cidade,
+          estado: data.uf || prev.estado,
+        }))
+      }
+    } finally {
+      setCepLoading(false)
+    }
+  }
+
   const handleSave = async () => {
     if (!user) return
+
+    const validation = validateAddress(form)
+    if (!validation.valid) {
+      setErrors(validation.errors)
+      return
+    }
+    setErrors({})
+
     setLoading(true)
     try {
       if (isSupabaseConfigured) {
@@ -200,14 +241,23 @@ export function AddressPage() {
       <CardContent>
         <CardTitle className="mb-6">Endereço de Entrega</CardTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
-          <Input label="CEP" value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} />
-          <Input label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} maxLength={2} />
-          <Input label="Rua" value={form.rua} onChange={(e) => setForm({ ...form, rua: e.target.value })} className="sm:col-span-2" />
-          <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
+          <Input
+            label="CEP"
+            value={form.cep}
+            onChange={(e) => setForm({ ...form, cep: formatCep(e.target.value) })}
+            onBlur={handleCepBlur}
+            error={errors.cep}
+            placeholder="00000-000"
+            maxLength={9}
+          />
+          <Input label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value.toUpperCase() })} error={errors.estado} maxLength={2} />
+          <Input label="Rua" value={form.rua} onChange={(e) => setForm({ ...form, rua: e.target.value })} error={errors.rua} className="sm:col-span-2" />
+          <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} error={errors.numero} />
           <Input label="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
-          <Input label="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
-          <Input label="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+          <Input label="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} error={errors.bairro} />
+          <Input label="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} error={errors.cidade} />
         </div>
+        {cepLoading && <p className="text-xs text-ulthor-gray-400 mt-2">Buscando endereço...</p>}
         {success && <p className="text-sm text-green-400 mt-4">Endereço salvo!</p>}
         <Button onClick={handleSave} isLoading={loading} className="mt-4 gap-2">
           <Save className="h-4 w-4" /> Salvar Endereço

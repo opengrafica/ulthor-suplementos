@@ -67,8 +67,12 @@ export interface Banner {
 export interface Order {
   id: string
   user_id: string
+  subtotal?: number
+  frete?: number
   total: number
   status: OrderStatus
+  metodo_envio?: string
+  prazo_entrega_dias?: number
   endereco_entrega?: Address
   created_at: string
   updated_at?: string

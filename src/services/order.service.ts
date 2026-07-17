@@ -1,13 +1,34 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import type { Order, OrderStatus, DashboardStats, User } from '@/types'
 
+export interface CreateOrderParams {
+  userId: string
+  items: { product_id: string; quantidade: number; preco: number }[]
+  subtotal: number
+  frete: number
+  total: number
+  endereco?: unknown
+  metodoEnvio?: string
+  prazoEntregaDias?: number
+}
+
 export const orderService = {
-  async create(userId: string, items: { product_id: string; quantidade: number; preco: number }[], total: number, endereco?: unknown) {
+  async create(params: CreateOrderParams) {
+    const { userId, items, subtotal, frete, total, endereco, metodoEnvio, prazoEntregaDias } = params
     if (!isSupabaseConfigured) throw new Error('Supabase não configurado')
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({ user_id: userId, total, endereco_entrega: endereco, status: 'recebido' })
+      .insert({
+        user_id: userId,
+        subtotal,
+        frete,
+        total,
+        endereco_entrega: endereco,
+        metodo_envio: metodoEnvio,
+        prazo_entrega_dias: prazoEntregaDias,
+        status: 'recebido',
+      })
       .select()
       .single()
     if (orderError) throw orderError
